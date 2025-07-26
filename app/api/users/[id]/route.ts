@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
@@ -22,73 +21,63 @@ function verifyToken(request: NextRequest) {
     }
 }
 
-function verifyAdmin(request: NextRequest) {
-    const token = getTokenFromHeader(request);
-    if (!token) return null;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { role: string };
-        if (decoded.role !== 'admin') return null;
-        return decoded;
-    } catch {
-        return null;
-    }
-}
-
-export async function POST(request: NextRequest) {
-    const admin = verifyAdmin(request);
-    if (!admin) {
-        return NextResponse.json({ error: 'Apenas admin pode criar usuários.' }, { status: 403 });
-    }
-    try {
-        const body = await request.json();
-        const { name, username, password, image, role } = body;
-
-        if (!name || !username || !password) {
-            return NextResponse.json({ error: 'Nome, username e senha são obrigatórios.' }, { status: 400 });
-        }
-
-        const existingUser = await prisma.user.findUnique({
-            where: { username },
-        });
-        if (existingUser) {
-            return NextResponse.json({ error: 'Username já existe.' }, { status: 409 });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await prisma.user.create({
-            data: {
-                name,
-                username,
-                password: hashedPassword,
-                image,
-                role: role || 'user',
-            },
-        });
-
-        // Nunca retorne a senha!
-        const { password: _, ...userWithoutPassword } = user;
-        return NextResponse.json(userWithoutPassword, { status: 201 });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro ao criar usuário.' }, { status: 500 });
-    }
-}
-
-export async function PUT(request: NextRequest) {
+// GET - Buscar usuário por ID
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
     const user = verifyToken(request);
     if (!user) {
         return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
     }
 
     try {
+        const userId = parseInt(params.id);
+
+        // Verificar se o usuário está tentando buscar outro usuário
+        if (user.role !== 'admin' && userId !== user.id) {
+            return NextResponse.json({ error: 'Você só pode buscar seus próprios dados.' }, { status: 403 });
+        }
+
+        const foundUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                image: true,
+                role: true,
+                createdAt: true,
+            },
+        });
+
+        if (!foundUser) {
+            return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+        }
+
+        return NextResponse.json(foundUser);
+    } catch (error) {
+        return NextResponse.json({ error: 'Erro ao buscar usuário.' }, { status: 500 });
+    }
+}
+
+// PUT - Atualizar usuário específico por ID
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    const user = verifyToken(request);
+    if (!user) {
+        return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    }
+
+    try {
+        const userId = parseInt(params.id);
         const body = await request.json();
-        const { id, name, username, password, image, role } = body;
+        const { name, username, password, image, role } = body;
 
         // Verificar se o usuário está tentando atualizar outro usuário
-        const targetUserId = id || user.id;
-
-        // Se não for admin e estiver tentando atualizar outro usuário, negar
-        if (user.role !== 'admin' && targetUserId !== user.id) {
+        if (user.role !== 'admin' && userId !== user.id) {
             return NextResponse.json({ error: 'Você só pode atualizar seus próprios dados.' }, { status: 403 });
         }
 
@@ -105,7 +94,7 @@ export async function PUT(request: NextRequest) {
             const existingUser = await prisma.user.findUnique({
                 where: { username },
             });
-            if (existingUser && existingUser.id !== targetUserId) {
+            if (existingUser && existingUser.id !== userId) {
                 return NextResponse.json({ error: 'Username já existe.' }, { status: 409 });
             }
             updateData.username = username;
@@ -113,17 +102,24 @@ export async function PUT(request: NextRequest) {
 
         // Se estiver atualizando senha, fazer hash
         if (password !== undefined) {
+            const bcrypt = require('bcryptjs');
             updateData.password = await bcrypt.hash(password, 10);
         }
 
         const updatedUser = await prisma.user.update({
-            where: { id: targetUserId },
+            where: { id: userId },
             data: updateData,
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                image: true,
+                role: true,
+                createdAt: true,
+            },
         });
 
-        // Nunca retorne a senha!
-        const { password: _, ...userWithoutPassword } = updatedUser;
-        return NextResponse.json(userWithoutPassword);
+        return NextResponse.json(updatedUser);
     } catch (error: any) {
         if (error.code === 'P2025') {
             return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
