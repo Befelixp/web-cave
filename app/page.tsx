@@ -8,35 +8,75 @@ import { FAB } from "@/components/fab";
 import { AddProductDialog } from "@/components/add-product-dialog";
 import { AddPurchaseDialog } from "@/components/add-purchase-dialog";
 import { ProductImage } from "@/components/product-image";
+import { LogOut } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  image?: string;
+// Função para gerar cor baseada no nome do usuário
+function getUserColor(userName: string) {
+  const colors = [
+    'bg-red-700/20 text-red-700 ring-red-600/30',
+    'bg-blue-700/20 text-blue-700 ring-blue-600/30',
+    'bg-green-700/20 text-green-700 ring-green-600/30',
+    'bg-purple-700/20 text-purple-700 ring-purple-600/30',
+    'bg-orange-700/20 text-orange-700 ring-orange-600/30',
+    'bg-pink-700/20 text-pink-700 ring-pink-600/30',
+    'bg-indigo-700/20 text-indigo-700 ring-indigo-600/30',
+    'bg-teal-700/20 text-teal-700 ring-teal-600/30',
+    'bg-amber-700/20 text-amber-700 ring-amber-600/30',
+    'bg-emerald-700/20 text-emerald-700 ring-emerald-600/30',
+  ];
+  
+  // Gera um hash simples baseado no nome
+  let hash = 0;
+  for (let i = 0; i < userName.length; i++) {
+    hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Usa o hash para selecionar uma cor
+  const colorIndex = Math.abs(hash) % colors.length;
+  return colors[colorIndex];
+}
+
+interface Purchase {
+  id: number;
+  userId: number;
+  productId: number;
+  price?: number;
+  purchaseDate: string;
   createdAt: string;
+  user: {
+    id: number;
+    name: string;
+    username: string;
+    image?: string;
+  };
+  product: {
+    id: number;
+    name: string;
+    category: string;
+    image?: string;
+  };
 }
 
 function HomeContent() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addPurchaseOpen, setAddPurchaseOpen] = useState(false);
   const router = useRouter();
   const hasFetched = useRef(false);
 
-  const fetchProducts = async () => {
+  const fetchPurchases = async () => {
     try {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/purchases');
       if (response.ok) {
         const data = await response.json();
-        const recentProducts = data.slice(0, 5);
-        setProducts(recentProducts);
+        const recentPurchases = data.slice(0, 10);
+        setPurchases(recentPurchases);
       }
     } catch (error) {
-      console.error('Erro ao buscar produtos:', error);
+      console.error('Erro ao buscar compras:', error);
     } finally {
       setLoading(false);
     }
@@ -48,7 +88,7 @@ function HomeContent() {
     }
     
     hasFetched.current = true;
-    fetchProducts();
+    fetchPurchases();
   }, []);
 
   const handleLogout = () => {
@@ -70,7 +110,7 @@ function HomeContent() {
     // Recarregar dados após sucesso
     hasFetched.current = false;
     setLoading(true);
-    fetchProducts();
+    fetchPurchases();
   };
 
   return (
@@ -82,19 +122,7 @@ function HomeContent() {
           onClick={handleLogout}
           className="flex items-center gap-2 cursor-pointer"
         >
-          <svg 
-            className="w-4 h-4" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-            />
-          </svg>
+          <LogOut className="w-4 h-4" />
           Logout
         </Button>
       </div>
@@ -109,7 +137,7 @@ function HomeContent() {
               <div className="space-y-3">
                 {[...Array(5)].map((_, index) => (
                   <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
-                    <Skeleton className="w-10 h-x10 rounded-md" />
+                    <Skeleton className="w-10 h-10 rounded-md" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-3/4" />
                       <Skeleton className="h-3 w-1/2" />
@@ -118,28 +146,43 @@ function HomeContent() {
                   </div>
                 ))}
               </div>
-            ) : products.length > 0 ? (
+            ) : purchases.length > 0 ? (
               <div className="space-y-3">
-                {products.map((product) => (
-                  <div key={product.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                {purchases.map((purchase) => (
+                  <div key={purchase.id} className="flex items-center gap-3 p-3 rounded-lg border">
                     <ProductImage
-                      src={product.image}
-                      alt={product.name}
+                      src={purchase.product.image}
+                      alt={purchase.product.name}
                       width={40}
                       height={40}
                     />
                     <div className="flex-1">
-                      <h3 className="font-medium">{product.name}</h3>
-                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{purchase.product.name}</h3>
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getUserColor(purchase.user.name)}`}>
+                          {purchase.user.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{purchase.product.category}</span>
+                        {purchase.price && (
+                          <>
+                            <span>•</span>
+                            <span>€ {purchase.price.toFixed(2)}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(product.createdAt).toLocaleDateString('pt-BR')}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(purchase.purchaseDate).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground">Nenhum produto encontrado.</p>
+              <p className="text-center text-muted-foreground">Nenhuma compra encontrada.</p>
             )}
           </CardContent>
         </Card>
