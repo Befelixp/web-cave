@@ -4,8 +4,11 @@ import { AuthGuard } from "@/components/auth-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { FAB } from "@/components/fab";
+import { AddProductDialog } from "@/components/add-product-dialog";
+import { AddPurchaseDialog } from "@/components/add-purchase-dialog";
+import { ProductImage } from "@/components/product-image";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface Product {
@@ -19,25 +22,32 @@ interface Product {
 function HomeContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [addPurchaseOpen, setAddPurchaseOpen] = useState(false);
   const router = useRouter();
+  const hasFetched = useRef(false);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products');
+      if (response.ok) {
+        const data = await response.json();
+        const recentProducts = data.slice(0, 5);
+        setProducts(recentProducts);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('/api/products');
-        if (response.ok) {
-          const data = await response.json();
-          // Pegar apenas os 5 produtos mais recentes
-          const recentProducts = data.slice(0, 5);
-          setProducts(recentProducts);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar produtos:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    if (hasFetched.current) {
+      return;
+    }
+    
+    hasFetched.current = true;
     fetchProducts();
   }, []);
 
@@ -48,6 +58,21 @@ function HomeContent() {
     router.push("/login");
   };
 
+  const handleAddProduct = () => {
+    setAddProductOpen(true);
+  };
+
+  const handleAddPurchase = () => {
+    setAddPurchaseOpen(true);
+  };
+
+  const handleSuccess = () => {
+    // Recarregar dados após sucesso
+    hasFetched.current = false;
+    setLoading(true);
+    fetchProducts();
+  };
+
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       {/* Header com botão de logout */}
@@ -55,7 +80,7 @@ function HomeContent() {
         <Button 
           variant="outline" 
           onClick={handleLogout}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 cursor-pointer"
         >
           <svg 
             className="w-4 h-4" 
@@ -97,15 +122,12 @@ function HomeContent() {
               <div className="space-y-3">
                 {products.map((product) => (
                   <div key={product.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                    {product.image && (
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        width={40}
-                        height={40}
-                        className="rounded-md object-cover"
-                      />
-                    )}
+                    <ProductImage
+                      src={product.image}
+                      alt={product.name}
+                      width={40}
+                      height={40}
+                    />
                     <div className="flex-1">
                       <h3 className="font-medium">{product.name}</h3>
                       <p className="text-sm text-muted-foreground">{product.category}</p>
@@ -122,6 +144,25 @@ function HomeContent() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Floating Action Button */}
+      <FAB 
+        onAddProduct={handleAddProduct}
+        onAddPurchase={handleAddPurchase}
+      />
+
+      {/* Diálogos */}
+      <AddProductDialog
+        open={addProductOpen}
+        onOpenChange={setAddProductOpen}
+        onSuccess={handleSuccess}
+      />
+      
+      <AddPurchaseDialog
+        open={addPurchaseOpen}
+        onOpenChange={setAddPurchaseOpen}
+        onSuccess={handleSuccess}
+      />
     </div>
   );
 }

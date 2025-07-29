@@ -31,7 +31,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         setIsAuthenticated(false);
         router.push("/login");
         return;
-      }
+      }  
 
       console.log("🔐 AuthGuard: Verificando token no servidor");
       // Verificar se o token é válido fazendo uma requisição para a API

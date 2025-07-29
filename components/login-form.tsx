@@ -96,7 +96,7 @@ export function LoginForm({
             {error && (
               <p className="text-sm text-red-500 text-center">{error}</p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
               {loading ? "Entrando..." : "Login"}
             </Button>
           </div>

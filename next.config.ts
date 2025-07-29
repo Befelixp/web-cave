@@ -1,23 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true, // Reativar para testar a solução
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: '**',
         port: '',
         pathname: '/**',
       },
       {
-        protocol: 'https',
-        hostname: 'via.placeholder.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
+        protocol: 'http',
+        hostname: '**',
         port: '',
         pathname: '/**',
       },
