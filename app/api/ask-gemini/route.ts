@@ -186,7 +186,14 @@ function analyzePurchasePatterns(purchases: Purchase[]) {
     return userStats;
 }
 
-function createCompleteUserStats(allUsers: any[], userPurchasePatterns: Record<number, UserStats>) {
+function createCompleteUserStats(allUsers: Array<{
+    id: number;
+    name: string;
+    username: string;
+    image: string | null;
+    role: string;
+    createdAt: Date;
+}>, userPurchasePatterns: Record<number, UserStats>) {
     const allUserStats: Record<number, UserStats> = {};
     const now = new Date();
 
@@ -203,13 +210,13 @@ function createCompleteUserStats(allUsers: any[], userPurchasePatterns: Record<n
                     id: user.id,
                     name: user.name,
                     username: user.username,
-                    image: user.image
+                    image: user.image || undefined
                 },
                 totalPurchases: 0,
                 categories: {},
                 recentPurchases: 0,
                 averagePrice: 0,
-                lastPurchaseDate: user.createdAt // Usar data de criação como "última compra"
+                lastPurchaseDate: user.createdAt.toISOString() // Usar data de criação como "última compra"
             };
         }
     });
