@@ -195,7 +195,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 ## 👨‍💻 Autor
 
-**Bernardo** - [GitHub](https://github.com/seu-usuario)
+**Bernardo** - [GitHub](https://github.com/Befelixp)
 
 ## 🙏 Agradecimentos
 
@@ -207,5 +207,5 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ---
 
 <div align="center">
-  <p>Feito com ❤️ para gerenciar contribuições de forma inteligente</p>
+  <p>Feito com ❤️ para gerenciar a Cave de forma inteligente</p>
 </div>
