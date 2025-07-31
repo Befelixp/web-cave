@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import prisma from '@/lib/prisma';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -63,21 +64,32 @@ export async function POST(request: NextRequest) {
         const body: AskGeminiRequest = await request.json();
         const { productName, productCategory, purchases } = body;
 
-        if (!purchases || purchases.length === 0) {
-            return NextResponse.json(
-                { error: 'Histórico de compras necessário para análise' },
-                { status: 400 }
-            );
-        }
+        // Buscar todos os usuários do banco de dados
+        const allUsers = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                image: true,
+                role: true,
+                createdAt: true,
+            },
+            orderBy: {
+                createdAt: 'asc'
+            }
+        });
 
-        // Analisar padrões de compra
+        // Analisar padrões de compra para usuários que já compraram
         const userPurchasePatterns = analyzePurchasePatterns(purchases);
 
+        // Criar estatísticas para todos os usuários, incluindo aqueles que nunca compraram
+        const allUserStats = createCompleteUserStats(allUsers, userPurchasePatterns);
+
         // Escolher usuário usando lógica de fallback (sem Gemini)
-        const selectedUser = selectUserWithFallback(userPurchasePatterns);
+        const selectedUser = selectUserWithFallback(allUserStats);
 
         // Gerar razão com Gemini
-        const reason = await generateReasonWithGemini(productName, productCategory, selectedUser, userPurchasePatterns);
+        const reason = await generateReasonWithGemini(productName, productCategory, selectedUser, allUserStats);
 
         const suggestion = {
             suggestedUser: selectedUser.user,
@@ -97,12 +109,31 @@ export async function POST(request: NextRequest) {
 
 function selectUserWithFallback(userStats: Record<number, UserStats>) {
     const users = Object.values(userStats);
+
+    // Primeiro, priorizar usuários que nunca compraram (totalPurchases = 0)
+    const usersWhoNeverBought = users.filter(user => user.totalPurchases === 0);
+    if (usersWhoNeverBought.length > 0) {
+        // Se há usuários que nunca compraram, escolher um aleatoriamente
+        const randomIndex = Math.floor(Math.random() * usersWhoNeverBought.length);
+        return usersWhoNeverBought[randomIndex];
+    }
+
+    // Se todos já compraram, usar lógica que considera gastos
     const bestMatch = users.reduce((best, current) => {
-        // Priorizar quem menos contribuiu nos últimos 30 dias
+        // 1. Priorizar quem menos contribuiu nos últimos 30 dias
         if (current.recentPurchases !== best.recentPurchases) {
             return current.recentPurchases < best.recentPurchases ? current : best;
         }
-        // Se empatar, priorizar quem não contribui há mais tempo
+
+        // 2. Se empatar em compras recentes, priorizar quem gastou menos dinheiro
+        const currentTotalSpent = current.averagePrice * current.totalPurchases;
+        const bestTotalSpent = best.averagePrice * best.totalPurchases;
+
+        if (Math.abs(currentTotalSpent - bestTotalSpent) > 0.01) { // Evitar problemas de precisão float
+            return currentTotalSpent < bestTotalSpent ? current : best;
+        }
+
+        // 3. Se empatar em gastos, priorizar quem não contribui há mais tempo
         const currentDaysSinceLast = Math.floor((new Date().getTime() - new Date(current.lastPurchaseDate).getTime()) / (1000 * 60 * 60 * 24));
         const bestDaysSinceLast = Math.floor((new Date().getTime() - new Date(best.lastPurchaseDate).getTime()) / (1000 * 60 * 60 * 24));
         return currentDaysSinceLast > bestDaysSinceLast ? current : best;
@@ -155,6 +186,37 @@ function analyzePurchasePatterns(purchases: Purchase[]) {
     return userStats;
 }
 
+function createCompleteUserStats(allUsers: any[], userPurchasePatterns: Record<number, UserStats>) {
+    const allUserStats: Record<number, UserStats> = {};
+    const now = new Date();
+
+    allUsers.forEach(user => {
+        const userPurchaseData = userPurchasePatterns[user.id];
+
+        if (userPurchaseData) {
+            // Usuário já tem histórico de compras
+            allUserStats[user.id] = userPurchaseData;
+        } else {
+            // Usuário nunca comprou - criar estatísticas vazias
+            allUserStats[user.id] = {
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    username: user.username,
+                    image: user.image
+                },
+                totalPurchases: 0,
+                categories: {},
+                recentPurchases: 0,
+                averagePrice: 0,
+                lastPurchaseDate: user.createdAt // Usar data de criação como "última compra"
+            };
+        }
+    });
+
+    return allUserStats;
+}
+
 async function generateReasonWithGemini(
     productName: string,
     productCategory: string,
@@ -165,24 +227,55 @@ async function generateReasonWithGemini(
         const users = Object.values(userStats);
         const daysSinceLast = Math.floor((new Date().getTime() - new Date(selectedUser.lastPurchaseDate).getTime()) / (1000 * 60 * 60 * 24));
 
+        // Verificar se o usuário nunca comprou
+        const neverBought = selectedUser.totalPurchases === 0;
+
+        const totalSpent = selectedUser.averagePrice * selectedUser.totalPurchases;
+
+        const userInfo = neverBought
+            ? `- Total de contribuições: NUNCA CONTRIBUÍU (0)`
+            : `- Total de contribuições: ${selectedUser.totalPurchases}`;
+
+        const spendingInfo = neverBought
+            ? `- Total gasto: R$ 0,00`
+            : `- Total gasto: R$ ${totalSpent.toFixed(2)}`;
+
+        const lastContribution = neverBought
+            ? `- Última contribuição: NUNCA CONTRIBUÍU`
+            : `- Última contribuição: ${new Date(selectedUser.lastPurchaseDate).toLocaleDateString('pt-BR')}`;
+
         const prompt = `
 Você é um membro da comunidade "Cave" que está CANSADO de sempre os mesmos contribuírem. Seja DIRETO, ASSERTIVO e até AGRESSIVO - como alguém que está falando a verdade na cara mesmo.
 
 O usuário ${selectedUser.user.name} (@${selectedUser.user.username}) foi selecionado para contribuir com "${productName}" (${productCategory}).
 
 INFORMAÇÕES DO USUÁRIO SELECIONADO:
-- Total de contribuições: ${selectedUser.totalPurchases}
+${userInfo}
+${spendingInfo}
 - Contribuições recentes (últimos 30 dias): ${selectedUser.recentPurchases}
-- Última contribuição: ${new Date(selectedUser.lastPurchaseDate).toLocaleDateString('pt-BR')}
+${lastContribution}
 - Dias desde a última contribuição: ${daysSinceLast} dias
 
 CONTEXTO DA COMUNIDADE:
-${users.map(user => `
+${users.map(user => {
+            const userDaysSinceLast = Math.floor((new Date().getTime() - new Date(user.lastPurchaseDate).getTime()) / (1000 * 60 * 60 * 24));
+            const userLastContribution = user.totalPurchases === 0
+                ? 'NUNCA CONTRIBUÍU'
+                : new Date(user.lastPurchaseDate).toLocaleDateString('pt-BR');
+
+            const userTotalSpent = user.averagePrice * user.totalPurchases;
+            const userSpendingInfo = user.totalPurchases === 0
+                ? '- Total gasto: R$ 0,00'
+                : `- Total gasto: R$ ${userTotalSpent.toFixed(2)}`;
+
+            return `
 ${user.user.name} (@${user.user.username}):
 - Total de contribuições: ${user.totalPurchases}
+${userSpendingInfo}
 - Contribuições recentes (últimos 30 dias): ${user.recentPurchases}
-- Última contribuição: ${new Date(user.lastPurchaseDate).toLocaleDateString('pt-BR')}
-`).join('\n')}
+- Última contribuição: ${userLastContribution}
+- Dias desde a última contribuição: ${userDaysSinceLast} dias`;
+        }).join('\n')}
 
 TAREFA:
 Gere uma mensagem CURTA, AGRESSIVA e DIRETA (máximo 2 frases) explicando por que ${selectedUser.user.name} deve contribuir com "${productName}".
@@ -190,7 +283,10 @@ Gere uma mensagem CURTA, AGRESSIVA e DIRETA (máximo 2 frases) explicando por qu
 REQUISITOS:
 - Mencione o nome do usuário (${selectedUser.user.name})
 - Seja assertivo e use tom de cobrança
-- Mencione quando foi a última contribuição (${daysSinceLast} dias atrás)
+${neverBought
+                ? '- Destaque que ele NUNCA contribuiu e está na hora de começar'
+                : `- Mencione quando foi a última contribuição (${daysSinceLast} dias atrás) e quanto ele gastou (R$ ${totalSpent.toFixed(2)})`
+            }
 - Use linguagem natural e gírias
 - Seja DIRETO e gere uma mensagem CURTA e ÚNICA
 - Máximo 2 frases
@@ -210,7 +306,13 @@ RESPONDA APENAS COM A MENSAGEM, sem JSON ou formatação adicional.
 
         // Fallback para a razão
         const daysSinceLast = Math.floor((new Date().getTime() - new Date(selectedUser.lastPurchaseDate).getTime()) / (1000 * 60 * 60 * 24));
-        return `Chega de moleza! Hora do ${selectedUser.user.name} contribuir! Ele não contribui há ${daysSinceLast} dias. 💪`;
+        const totalSpent = selectedUser.averagePrice * selectedUser.totalPurchases;
+
+        if (selectedUser.totalPurchases === 0) {
+            return `Chega de moleza! Hora do ${selectedUser.user.name} começar a contribuir! Ele nunca contribuiu com nada! 💪`;
+        }
+
+        return `Chega de moleza! Hora do ${selectedUser.user.name} contribuir! Ele só gastou R$ ${totalSpent.toFixed(2)} e não contribui há ${daysSinceLast} dias. 💪`;
     }
 }
 
