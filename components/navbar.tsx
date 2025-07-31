@@ -2,13 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User, Sparkles } from "lucide-react";
+import { LogOut, User, Sparkles, Settings } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 
 export function Navbar() {
   const { user, logout } = useAuth();
+  const { isAdmin } = useAdmin();
 
   const handleLogout = () => {
     logout();
@@ -37,6 +39,16 @@ export function Navbar() {
             <Sparkles className="w-4 h-4" />
             <span className="hidden sm:block">Pergunte à Cave</span>
           </Link>
+          
+          {isAdmin && (
+            <Link 
+              href="/admin/products"
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:block">Gerenciar Produtos</span>
+            </Link>
+          )}
         </div>
 
         {/* User Info and Logout */}
