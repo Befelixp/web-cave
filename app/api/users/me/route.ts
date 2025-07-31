@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json(foundUser);
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao buscar usuário.' }, { status: 500 });
     }
 }

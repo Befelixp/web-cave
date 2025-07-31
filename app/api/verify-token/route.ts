@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);
             return NextResponse.json({ valid: true, user: decoded });
-        } catch (error) {
+        } catch (_error) {
             return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
         }
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao verificar token.' }, { status: 500 });
     }
 } 

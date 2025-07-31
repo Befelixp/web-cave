@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
         });
 
         // Nunca retorne a senha!
-        const { password: _, ...userWithoutPassword } = user;
+        const { password: _password, ...userWithoutPassword } = user;
         return NextResponse.json(userWithoutPassword, { status: 201 });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao criar usuário.' }, { status: 500 });
     }
 }
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
 
         // Se for admin, pode atualizar qualquer usuário
         // Se não for admin, só pode atualizar a si mesmo
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) updateData.name = name;
         if (image !== undefined) updateData.image = image;
@@ -122,10 +122,10 @@ export async function PUT(request: NextRequest) {
         });
 
         // Nunca retorne a senha!
-        const { password: _, ...userWithoutPassword } = updatedUser;
+        const { password: _password, ...userWithoutPassword } = updatedUser;
         return NextResponse.json(userWithoutPassword);
-    } catch (error: any) {
-        if (error.code === 'P2025') {
+    } catch (error: unknown) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
             return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
         }
         return NextResponse.json({ error: 'Erro ao atualizar usuário.' }, { status: 500 });

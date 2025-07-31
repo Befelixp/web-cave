@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         );
 
         return NextResponse.json({ token });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao autenticar.' }, { status: 500 });
     }
 } 

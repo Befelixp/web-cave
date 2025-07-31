@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
@@ -55,7 +56,7 @@ export async function GET(
         }
 
         return NextResponse.json(foundUser);
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao buscar usuário.' }, { status: 500 });
     }
 }
@@ -83,7 +84,7 @@ export async function PUT(
 
         // Se for admin, pode atualizar qualquer usuário
         // Se não for admin, só pode atualizar a si mesmo
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) updateData.name = name;
         if (image !== undefined) updateData.image = image;
@@ -119,7 +120,6 @@ export async function PUT(
             }
 
             // Validar senha atual
-            const bcrypt = require('bcryptjs');
             const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userWithPassword.password);
 
             if (!isCurrentPasswordValid) {
@@ -149,8 +149,8 @@ export async function PUT(
         });
 
         return NextResponse.json(updatedUser);
-    } catch (error: any) {
-        if (error.code === 'P2025') {
+    } catch (error: unknown) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
             return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
         }
         return NextResponse.json({ error: 'Erro ao atualizar usuário.' }, { status: 500 });

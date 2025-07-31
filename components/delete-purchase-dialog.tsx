@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,7 +50,7 @@ export function DeletePurchaseDialog({
         
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Tem certeza que deseja deletar a compra <strong>"{purchaseName}"</strong>? 
+            Tem certeza que deseja deletar a compra <strong>&quot;{purchaseName}&quot;</strong>? 
             Esta ação removerá permanentemente a compra do seu histórico.
           </p>
         </div>

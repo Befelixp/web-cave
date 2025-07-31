@@ -79,7 +79,7 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
         const data = await response.json();
         setError(data.error || 'Erro ao editar produto');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erro ao conectar com o servidor');
     } finally {
       setLoading(false);

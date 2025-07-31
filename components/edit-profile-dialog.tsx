@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Edit, Eye, EyeOff } from "lucide-react";
@@ -61,7 +61,7 @@ export function EditProfileDialog({ open, onOpenChange, onSuccess }: EditProfile
 
     try {
       const token = localStorage.getItem("token");
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         name,
         image,
       };
@@ -101,7 +101,7 @@ export function EditProfileDialog({ open, onOpenChange, onSuccess }: EditProfile
       } else {
         setError(data.error || "Erro ao atualizar perfil");
       }
-    } catch (error) {
+    } catch (_error) {
       setError("Erro de conexão");
     } finally {
       setLoading(false);

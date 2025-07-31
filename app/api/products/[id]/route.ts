@@ -13,7 +13,7 @@ async function verifyAdmin(request: NextRequest) {
         }
 
         const token = authHeader.substring(7);
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: string };
 
         const user = await prisma.user.findUnique({
             where: { id: decoded.id }
@@ -24,7 +24,7 @@ async function verifyAdmin(request: NextRequest) {
         }
 
         return user;
-    } catch (error) {
+    } catch (_error) {
         return null;
     }
 }
@@ -89,7 +89,7 @@ export async function PUT(
         });
 
         return NextResponse.json(updatedProduct);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Erro ao atualizar produto:', error);
         return NextResponse.json(
             { error: 'Erro ao atualizar produto.' },
@@ -144,7 +144,7 @@ export async function DELETE(
             { message: 'Produto deletado com sucesso.' },
             { status: 200 }
         );
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Erro ao deletar produto:', error);
         return NextResponse.json(
             { error: 'Erro ao deletar produto.' },

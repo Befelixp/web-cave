@@ -37,6 +37,20 @@ interface AskGeminiRequest {
     purchases: Purchase[];
 }
 
+interface UserStats {
+    user: {
+        id: number;
+        name: string;
+        username: string;
+        image?: string;
+    };
+    totalPurchases: number;
+    categories: Record<string, number>;
+    recentPurchases: number;
+    averagePrice: number;
+    lastPurchaseDate: string;
+}
+
 export async function POST(request: NextRequest) {
     try {
         if (!GEMINI_API_KEY) {
@@ -72,7 +86,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(suggestion);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Erro ao consultar Gemini:', error);
         return NextResponse.json(
             { error: 'Erro ao processar consulta com IA' },
@@ -81,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-function selectUserWithFallback(userStats: Record<number, any>) {
+function selectUserWithFallback(userStats: Record<number, UserStats>) {
     const users = Object.values(userStats);
     const bestMatch = users.reduce((best, current) => {
         // Priorizar quem menos contribuiu nos últimos 30 dias
@@ -98,14 +112,7 @@ function selectUserWithFallback(userStats: Record<number, any>) {
 }
 
 function analyzePurchasePatterns(purchases: Purchase[]) {
-    const userStats: Record<number, {
-        user: Purchase['user'];
-        totalPurchases: number;
-        categories: Record<string, number>;
-        recentPurchases: number;
-        averagePrice: number;
-        lastPurchaseDate: string;
-    }> = {};
+    const userStats: Record<number, UserStats> = {};
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -151,8 +158,8 @@ function analyzePurchasePatterns(purchases: Purchase[]) {
 async function generateReasonWithGemini(
     productName: string,
     productCategory: string,
-    selectedUser: any,
-    userStats: Record<number, any>
+    selectedUser: UserStats,
+    userStats: Record<number, UserStats>
 ) {
     try {
         const users = Object.values(userStats);

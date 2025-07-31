@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         const userId = searchParams.get('userId');
 
         // Filtrar por usuário se especificado
-        const where: any = {};
+        const where: Record<string, unknown> = {};
         if (userId) {
             where.userId = parseInt(userId);
         }
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json(purchases);
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao buscar compras.' }, { status: 500 });
     }
 }
@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json(purchase, { status: 201 });
-    } catch (error: any) {
-        if (error.code === 'P2003') {
+    } catch (error: unknown) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2003') {
             return NextResponse.json({ error: 'Produto ou usuário não encontrado.' }, { status: 404 });
         }
         return NextResponse.json({ error: 'Erro ao criar compra.' }, { status: 500 });

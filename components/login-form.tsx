@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryVerticalEnd, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -50,7 +50,7 @@ export function LoginForm({
       } else {
         setError(data.error || "Erro ao fazer login");
       }
-    } catch (error) {
+    } catch (_error) {
       setError("Erro de conexão");
     } finally {
       setLoading(false);

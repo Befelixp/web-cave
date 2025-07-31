@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json(products);
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({ error: 'Erro ao buscar produtos.' }, { status: 500 });
     }
 }
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json(product, { status: 201 });
-    } catch (error: any) {
-        if (error.code === 'P2002') {
+    } catch (error: unknown) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
             // Prisma unique constraint failed
             return NextResponse.json({ error: 'Produto já existe.' }, { status: 409 });
         }

@@ -66,7 +66,7 @@ export async function DELETE(
         });
 
         return NextResponse.json({ message: 'Compra deletada com sucesso.' });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Erro ao deletar compra:', error);
         return NextResponse.json({ error: 'Erro ao deletar compra.' }, { status: 500 });
     }

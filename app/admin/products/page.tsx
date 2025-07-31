@@ -79,7 +79,7 @@ export default function AdminProductsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {[...Array(5)].map((_, index) => (
+                    {[...Array(5)].map((_item, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
                         <Skeleton className="w-10 h-10 rounded-md" />
                         <div className="flex-1 space-y-2">
@@ -122,7 +122,7 @@ export default function AdminProductsPage() {
               <CardContent>
                 {loading ? (
                   <div className="space-y-3">
-                    {[...Array(5)].map((_, index) => (
+                    {[...Array(5)].map((_item, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
                         <Skeleton className="w-10 h-10 rounded-md" />
                         <div className="flex-1 space-y-2">

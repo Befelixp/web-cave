@@ -45,7 +45,7 @@ export function DeleteProductDialog({ open, onOpenChange, product, onSuccess }: 
         const data = await response.json();
         setError(data.error || 'Erro ao deletar produto');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Erro ao conectar com o servidor');
     } finally {
       setLoading(false);

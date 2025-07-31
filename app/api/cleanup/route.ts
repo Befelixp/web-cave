@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
         // Calcular a data de 2 meses atrás
         const twoMonthsAgo = new Date();
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
             cutoffDate: twoMonthsAgo.toISOString()
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[CLEANUP] Erro durante a limpeza:', error);
         return NextResponse.json({
             error: 'Erro durante a limpeza automática.'
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Endpoint GET para verificar compras que seriam deletadas (sem deletar)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         // Calcular a data de 2 meses atrás
         const twoMonthsAgo = new Date();
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
             }))
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[CLEANUP] Erro ao verificar compras antigas:', error);
         return NextResponse.json({
             error: 'Erro ao verificar compras antigas.'
