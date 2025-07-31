@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
     try {
         // Calcular a data de 2 meses atrás
         const twoMonthsAgo = new Date();
@@ -65,7 +65,7 @@ export async function POST(_request: NextRequest) {
 }
 
 // Endpoint GET para verificar compras que seriam deletadas (sem deletar)
-export async function GET(_request: NextRequest) {
+export async function GET() {
     try {
         // Calcular a data de 2 meses atrás
         const twoMonthsAgo = new Date();

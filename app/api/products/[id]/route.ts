@@ -24,7 +24,7 @@ async function verifyAdmin(request: NextRequest) {
         }
 
         return user;
-    } catch (_error) {
+    } catch {
         return null;
     }
 }

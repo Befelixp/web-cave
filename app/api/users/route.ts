@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         // Nunca retorne a senha!
         const { password: _password, ...userWithoutPassword } = user;
         return NextResponse.json(userWithoutPassword, { status: 201 });
-    } catch (_error) {
+    } catch {
         return NextResponse.json({ error: 'Erro ao criar usuário.' }, { status: 500 });
     }
 }

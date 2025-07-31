@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json(purchases);
-    } catch (_error) {
+    } catch {
         return NextResponse.json({ error: 'Erro ao buscar compras.' }, { status: 500 });
     }
 }
