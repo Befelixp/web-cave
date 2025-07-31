@@ -1,6 +1,6 @@
 "use client";
 
-import { GalleryVerticalEnd } from "lucide-react"
+import { GalleryVerticalEnd, Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Chewy } from "next/font/google";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 const chewy = Chewy({ subsets: ["latin"], weight: "400" });
 
@@ -19,9 +20,11 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +43,8 @@ export function LoginForm({
       const data = await response.json();
 
       if (response.ok) {
-        // Salvar token no localStorage
-        localStorage.setItem("token", data.token);
+        // Usar o método login do AuthContext e aguardar conclusão
+        await login(data.token);
         // Redirecionar para a página principal
         router.push("/");
       } else {
@@ -83,15 +86,32 @@ export function LoginForm({
             </div>
             <div className="grid gap-3">
               <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="********"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             {error && (
               <p className="text-sm text-red-500 text-center">{error}</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Função para decodificar JWT no cliente (sem verificar assinatura)
@@ -33,6 +33,7 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   checkAuth: (forceServerCheck?: boolean) => Promise<boolean>;
+  refreshUserData: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -42,44 +43,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [user, setUser] = useState<any>(null);
   const [lastServerCheck, setLastServerCheck] = useState<number>(0);
+  const isChecking = useRef(false);
   const router = useRouter();
 
   const checkAuth = useCallback(async (forceServerCheck = false) => {
-    const token = localStorage.getItem("token");
-    
-    if (!token) {
-      setIsAuthenticated(false);
-      setUser(null);
-      return false;
+    // Evitar verificações simultâneas
+    if (isChecking.current) {
+      return isAuthenticated === true;
     }
 
-    // Primeiro, verificar localmente se o token expirou
-    if (isTokenExpired(token)) {
-      localStorage.removeItem("token");
-      setIsAuthenticated(false);
-      setUser(null);
-      return false;
-    }
-
-    // Decodificar token para obter informações do usuário
-    const decoded = decodeJWT(token);
-    setUser(decoded);
-
-    // Verificar se já fizemos uma verificação no servidor recentemente (últimos 5 minutos)
-    const now = Date.now();
-    const timeSinceLastCheck = now - lastServerCheck;
-    const FIVE_MINUTES = 5 * 60 * 1000;
-
-    if (!forceServerCheck && timeSinceLastCheck < FIVE_MINUTES) {
-      // Se verificamos recentemente, confiar na verificação local
-      setIsAuthenticated(true);
-      return true;
-    }
-
-    // Se não verificamos recentemente ou forçamos verificação, fazer verificação no servidor
-    setLastServerCheck(now);
+    isChecking.current = true;
     
     try {
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return false;
+      }
+
+      // Primeiro, verificar localmente se o token expirou
+      if (isTokenExpired(token)) {
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        setUser(null);
+        return false;
+      }
+
+      // Decodificar token para obter informações básicas do usuário
+      const decoded = decodeJWT(token);
+
+      // Verificar se já fizemos uma verificação no servidor recentemente (últimos 5 minutos)
+      const now = Date.now();
+      const timeSinceLastCheck = now - lastServerCheck;
+      const FIVE_MINUTES = 5 * 60 * 1000;
+
+      if (!forceServerCheck && timeSinceLastCheck < FIVE_MINUTES) {
+        // Se verificamos recentemente, confiar na verificação local
+        setIsAuthenticated(true);
+        // Buscar dados completos do usuário apenas se não temos dados ou se são incompletos
+        if (!user || !user.image) {
+          try {
+            const userResponse = await fetch("/api/users/me", {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              setUser(userData);
+            }
+          } catch (error) {
+            // Silenciar erro
+          }
+        }
+        return true;
+      }
+
+      // Se não verificamos recentemente ou forçamos verificação, fazer verificação no servidor
+      setLastServerCheck(now);
+      
       const response = await fetch("/api/verify-token", {
         method: "POST",
         headers: {
@@ -90,6 +114,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         setIsAuthenticated(true);
+        
+        // Buscar dados completos do usuário apenas se não temos dados completos
+        if (!user || !user.image) {
+          try {
+            const userResponse = await fetch("/api/users/me", {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              setUser(userData);
+            }
+          } catch (error) {
+            // Se não conseguir buscar dados completos, usar dados do token
+            setUser(decoded);
+          }
+        } else {
+          // Se já temos dados completos, usar os existentes
+          setUser(user);
+        }
+        
         return true;
       } else {
         // Token inválido no servidor - remover e redirecionar
@@ -100,7 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       // Em caso de erro de rede, manter o usuário logado se o token não expirou localmente
-      if (!isTokenExpired(token)) {
+      const token = localStorage.getItem("token");
+      if (token && !isTokenExpired(token)) {
         setIsAuthenticated(true);
         return true;
       } else {
@@ -109,8 +156,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         return false;
       }
+    } finally {
+      isChecking.current = false;
     }
-  }, [lastServerCheck]);
+  }, [lastServerCheck, isAuthenticated]);
+
+  const login = useCallback(async (token: string) => {
+    localStorage.setItem("token", token);
+    const result = await checkAuth(true); // Aguardar verificação no servidor após login
+    return result;
+  }, [checkAuth]);
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
@@ -120,14 +175,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }, [router]);
 
-  const login = useCallback((token: string) => {
-    localStorage.setItem("token", token);
-    checkAuth(true); // Forçar verificação no servidor após login
-  }, [checkAuth]);
+  const refreshUserData = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const userResponse = await fetch("/api/users/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      // Silenciar erro
+    }
+  }, []);
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    // Só executar checkAuth se ainda não foi executado
+    if (isAuthenticated === null) {
+      checkAuth();
+    }
+  }, [checkAuth, isAuthenticated]);
 
   const value = {
     isAuthenticated,
@@ -135,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     checkAuth,
+    refreshUserData,
     isLoading: isAuthenticated === null
   };
 

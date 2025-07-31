@@ -1,0 +1,793 @@
+openapi: 3.0.0
+info:
+  title: CAVE API
+  version: 1.0.0
+  description: |
+    API para o sistema CAVE - Sistema de gerenciamento de produtos e compras.
+    
+    ## Autenticação
+    Esta API usa JWT para autenticação. Inclua o token no header:
+    ```
+    Authorization: Bearer <seu-token>
+    ```
+    
+    ## Endpoints Principais
+    - **Autenticação**: Login e verificação de token
+    - **Usuários**: CRUD completo de usuários
+    - **Produtos**: Gerenciamento de produtos
+    - **Compras**: Registro e consulta de compras
+
+  contact:
+    name: CAVE Team
+    email: support@cave.com
+
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desenvolvimento
+  - url: https://api.cave.com
+    description: Servidor de produção
+
+paths:
+  # ========================================
+  # AUTENTICAÇÃO
+  # ========================================
+  /api/login:
+    post:
+      tags:
+        - Autenticação
+      summary: Realizar login
+      description: Autentica um usuário e retorna um token JWT válido por 7 dias
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: "admin"
+              password: "admin123"
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Dados obrigatórios não fornecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username e senha são obrigatórios."
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Usuário ou senha inválidos."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao autenticar."
+
+  /api/verify-token:
+    post:
+      tags:
+        - Autenticação
+      summary: Verificar token JWT
+      description: Valida se um token JWT é válido e retorna os dados do usuário
+      operationId: verifyToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token válido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenVerificationResponse'
+              example:
+                valid: true
+                user:
+                  id: 1
+                  username: "admin"
+                  name: "Administrador"
+                  role: "admin"
+        '401':
+          description: Token inválido ou não fornecido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao verificar token."
+
+  # ========================================
+  # USUÁRIOS
+  # ========================================
+  /api/users:
+    post:
+      tags:
+        - Usuários
+      summary: Criar usuário (apenas admin)
+      description: Cria um novo usuário no sistema. Apenas administradores podem criar usuários.
+      operationId: createUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              name: "João Silva"
+              username: "joao123"
+              password: "senha123"
+              image: "https://example.com/avatar.jpg"
+              role: "user"
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 2
+                name: "João Silva"
+                username: "joao123"
+                image: "https://example.com/avatar.jpg"
+                role: "user"
+                createdAt: "2024-01-15T10:30:00Z"
+        '400':
+          description: Dados obrigatórios não fornecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Nome, username e senha são obrigatórios."
+        '403':
+          description: Acesso negado (apenas admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Apenas admin pode criar usuários."
+        '409':
+          description: Usuário já existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username já existe."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao criar usuário."
+
+    put:
+      tags:
+        - Usuários
+      summary: Atualizar usuário
+      description: Atualiza os dados do usuário. Usuários podem atualizar apenas seus próprios dados, admins podem atualizar qualquer usuário.
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              id: 1
+              name: "João Silva Atualizado"
+              username: "joao123"
+              image: "https://example.com/new-avatar.jpg"
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '403':
+          description: Acesso negado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Você só pode atualizar seus próprios dados."
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Usuário não encontrado."
+        '409':
+          description: Username já existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username já existe."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao atualizar usuário."
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Usuários
+      summary: Buscar usuário por ID
+      description: Retorna os dados de um usuário específico. Usuários podem buscar apenas seus próprios dados, admins podem buscar qualquer usuário.
+      operationId: getUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID do usuário
+          example: 1
+      responses:
+        '200':
+          description: Dados do usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 1
+                name: "João Silva"
+                username: "joao123"
+                image: "https://example.com/avatar.jpg"
+                role: "user"
+                createdAt: "2024-01-15T10:30:00Z"
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '403':
+          description: Acesso negado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Você só pode buscar seus próprios dados."
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Usuário não encontrado."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao buscar usuário."
+
+    put:
+      tags:
+        - Usuários
+      summary: Atualizar usuário específico por ID
+      description: Atualiza os dados de um usuário específico. Usuários podem atualizar apenas seus próprios dados, admins podem atualizar qualquer usuário.
+      operationId: updateUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID do usuário
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              name: "João Silva Atualizado"
+              username: "joao123"
+              image: "https://example.com/new-avatar.jpg"
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '403':
+          description: Acesso negado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Você só pode atualizar seus próprios dados."
+        '404':
+          description: Usuário não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Usuário não encontrado."
+        '409':
+          description: Username já existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Username já existe."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao atualizar usuário."
+
+  # ========================================
+  # PRODUTOS
+  # ========================================
+  /api/products:
+    get:
+      tags:
+        - Produtos
+      summary: Listar produtos
+      description: Retorna uma lista de produtos, opcionalmente filtrada por categoria
+      operationId: getProducts
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filtrar produtos por categoria
+          example: "eletrônicos"
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+              example:
+                - id: 1
+                  name: "iPhone 15"
+                  category: "eletrônicos"
+                  image: "https://example.com/iphone.jpg"
+                  createdAt: "2024-01-15T10:30:00Z"
+                - id: 2
+                  name: "MacBook Pro"
+                  category: "computadores"
+                  image: "https://example.com/macbook.jpg"
+                  createdAt: "2024-01-15T11:00:00Z"
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao buscar produtos."
+
+    post:
+      tags:
+        - Produtos
+      summary: Criar produto
+      description: Cria um novo produto no sistema
+      operationId: createProduct
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+            example:
+              name: "iPhone 15"
+              category: "eletrônicos"
+              image: "https://example.com/iphone.jpg"
+      responses:
+        '201':
+          description: Produto criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: 1
+                name: "iPhone 15"
+                category: "eletrônicos"
+                image: "https://example.com/iphone.jpg"
+                createdAt: "2024-01-15T10:30:00Z"
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Nome do produto é obrigatório."
+        '409':
+          description: Produto já existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Produto já existe."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao criar produto."
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT obtido através do endpoint `/api/login`.
+        O token expira em 7 dias.
+        Inclua o token no header: `Authorization: Bearer <token>`
+
+  schemas:
+    # ========================================
+    # AUTENTICAÇÃO
+    # ========================================
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Nome de usuário único
+          example: "admin"
+        password:
+          type: string
+          description: Senha do usuário
+          example: "admin123"
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT para autenticação (válido por 7 dias)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    TokenVerificationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Se o token é válido
+          example: true
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: ID do usuário
+              example: 1
+            username:
+              type: string
+              description: Nome de usuário
+              example: "admin"
+            name:
+              type: string
+              description: Nome completo
+              example: "Administrador"
+            role:
+              type: string
+              enum: [user, admin]
+              description: Papel do usuário
+              example: "admin"
+
+    # ========================================
+    # USUÁRIOS
+    # ========================================
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único do usuário
+          example: 1
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "João Silva"
+        username:
+          type: string
+          description: Nome de usuário único
+          example: "joao123"
+        image:
+          type: string
+          nullable: true
+          description: URL da imagem do usuário
+          example: "https://example.com/avatar.jpg"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Papel do usuário no sistema
+          example: "user"
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação
+          example: "2024-01-15T10:30:00Z"
+
+    CreateUserRequest:
+      type: object
+      required:
+        - name
+        - username
+        - password
+      properties:
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "João Silva"
+        username:
+          type: string
+          description: Nome de usuário único
+          example: "joao123"
+        password:
+          type: string
+          description: Senha do usuário
+          example: "senha123"
+          format: password
+        image:
+          type: string
+          description: URL da imagem do usuário
+          example: "https://example.com/avatar.jpg"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Papel do usuário (opcional, padrão: user)
+          example: "user"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID do usuário (opcional, usado apenas no PUT /api/users)
+          example: 1
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "João Silva"
+        username:
+          type: string
+          description: Nome de usuário único
+          example: "joao123"
+        password:
+          type: string
+          description: Nova senha do usuário
+          example: "nova-senha123"
+          format: password
+        image:
+          type: string
+          description: URL da imagem do usuário
+          example: "https://example.com/avatar.jpg"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Papel do usuário (apenas admin pode alterar)
+          example: "user"
+
+    # ========================================
+    # PRODUTOS
+    # ========================================
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único do produto
+          example: 1
+        name:
+          type: string
+          description: Nome do produto
+          example: "iPhone 15"
+        category:
+          type: string
+          description: Categoria do produto
+          example: "eletrônicos"
+        image:
+          type: string
+          nullable: true
+          description: URL da imagem do produto
+          example: "https://example.com/iphone.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação
+          example: "2024-01-15T10:30:00Z"
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Nome do produto
+          example: "iPhone 15"
+        category:
+          type: string
+          description: Categoria do produto
+          example: "eletrônicos"
+        image:
+          type: string
+          description: URL da imagem do produto
+          example: "https://example.com/iphone.jpg"
+
+    # ========================================
+    # COMPRAS (Futuro)
+    # ========================================
+    Purchase:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único da compra
+          example: 1
+        userId:
+          type: integer
+          description: ID do usuário que fez a compra
+          example: 1
+        productId:
+          type: integer
+          description: ID do produto comprado
+          example: 1
+        price:
+          type: number
+          format: float
+          nullable: true
+          description: Preço da compra
+          example: 999.99
+        purchaseDate:
+          type: string
+          format: date-time
+          description: Data da compra
+          example: "2024-01-15T10:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação do registro
+          example: "2024-01-15T10:30:00Z"
+        user:
+          $ref: '#/components/schemas/User'
+        product:
+          $ref: '#/components/schemas/Product'
+
+    CreatePurchaseRequest:
+      type: object
+      required:
+        - userId
+        - productId
+      properties:
+        userId:
+          type: integer
+          description: ID do usuário que está fazendo a compra
+          example: 1
+        productId:
+          type: integer
+          description: ID do produto sendo comprado
+          example: 1
+        price:
+          type: number
+          format: float
+          description: Preço da compra
+          example: 999.99
+
+    # ========================================
+    # ERROS
+    # ========================================
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensagem de erro
+          example: "Erro ao processar requisição"
+        details:
+          type: string
+          nullable: true
+          description: Detalhes adicionais do erro
+          example: "Campo 'name' é obrigatório"
+
+tags:
+  - name: Autenticação
+    description: Endpoints relacionados à autenticação e autorização
+  - name: Usuários
+    description: Gerenciamento de usuários do sistema
+  - name: Produtos
+    description: Gerenciamento de produtos
+  - name: Compras
+    description: Registro e consulta de compras (futuro)

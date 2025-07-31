@@ -24,7 +24,7 @@ function verifyToken(request: NextRequest) {
 // GET - Buscar usuário por ID
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const user = verifyToken(request);
     if (!user) {
@@ -32,12 +32,11 @@ export async function GET(
     }
 
     try {
-        const userId = parseInt(params.id);
+        const { id } = await params;
+        const userId = parseInt(id);
 
-        // Verificar se o usuário está tentando buscar outro usuário
-        if (user.role !== 'admin' && userId !== user.id) {
-            return NextResponse.json({ error: 'Você só pode buscar seus próprios dados.' }, { status: 403 });
-        }
+        // Permitir que qualquer usuário autenticado veja o perfil de outros usuários
+        // (removendo a restrição de admin)
 
         const foundUser = await prisma.user.findUnique({
             where: { id: userId },
@@ -64,7 +63,7 @@ export async function GET(
 // PUT - Atualizar usuário específico por ID
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const user = verifyToken(request);
     if (!user) {
@@ -72,9 +71,10 @@ export async function PUT(
     }
 
     try {
-        const userId = parseInt(params.id);
+        const { id } = await params;
+        const userId = parseInt(id);
         const body = await request.json();
-        const { name, username, password, image, role } = body;
+        const { name, username, currentPassword, newPassword, image, role } = body;
 
         // Verificar se o usuário está tentando atualizar outro usuário
         if (user.role !== 'admin' && userId !== user.id) {
@@ -100,10 +100,39 @@ export async function PUT(
             updateData.username = username;
         }
 
-        // Se estiver atualizando senha, fazer hash
-        if (password !== undefined) {
+        // Se estiver atualizando senha, validar senha atual
+        if (newPassword !== undefined) {
+            if (!currentPassword) {
+                return NextResponse.json({ error: 'Senha atual é obrigatória para alterar a senha.' }, { status: 400 });
+            }
+
+            // Buscar usuário com senha para validação
+            const userWithPassword = await prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    password: true,
+                },
+            });
+
+            if (!userWithPassword) {
+                return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+            }
+
+            // Validar senha atual
             const bcrypt = require('bcryptjs');
-            updateData.password = await bcrypt.hash(password, 10);
+            const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userWithPassword.password);
+
+            if (!isCurrentPasswordValid) {
+                return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 });
+            }
+
+            // Validar nova senha
+            if (newPassword.length < 6) {
+                return NextResponse.json({ error: 'A nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+            }
+
+            // Fazer hash da nova senha
+            updateData.password = await bcrypt.hash(newPassword, 10);
         }
 
         const updatedUser = await prisma.user.update({
