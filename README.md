@@ -74,7 +74,7 @@
 
 ### **1. Clone o Repositório**
 ```bash
-git clone https://github.com/seu-usuario/the-cave.git
+git clone https://github.com/Befelixp/the-cave.git
 cd the-cave
 ```
 
