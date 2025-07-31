@@ -15,7 +15,8 @@ info:
     - **Autenticação**: Login e verificação de token
     - **Usuários**: CRUD completo de usuários
     - **Produtos**: Gerenciamento de produtos
-    - **Compras**: Registro e consulta de compras
+    - **Compras**: Registro, consulta e exclusão de compras
+    - **Limpeza**: Limpeza automática de compras antigas
 
   contact:
     name: CAVE Team
@@ -397,6 +398,46 @@ paths:
               example:
                 error: "Erro ao atualizar usuário."
 
+  /api/users/me:
+    get:
+      tags:
+        - Usuários
+      summary: Buscar dados do usuário atual
+      description: Retorna os dados do usuário autenticado
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dados do usuário atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 1
+                name: "João Silva"
+                username: "joao123"
+                image: "https://example.com/avatar.jpg"
+                role: "user"
+                createdAt: "2024-01-15T10:30:00Z"
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao buscar usuário."
+
   # ========================================
   # PRODUTOS
   # ========================================
@@ -498,6 +539,274 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "Erro ao criar produto."
+
+  # ========================================
+  # COMPRAS
+  # ========================================
+  /api/purchases:
+    get:
+      tags:
+        - Compras
+      summary: Listar compras
+      description: Retorna uma lista de compras, opcionalmente filtrada por usuário
+      operationId: getPurchases
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: integer
+          description: Filtrar compras por usuário específico
+          example: 1
+      responses:
+        '200':
+          description: Lista de compras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+              example:
+                - id: 1
+                  userId: 1
+                  productId: 1
+                  price: 999.99
+                  purchaseDate: "2024-01-15T10:30:00Z"
+                  createdAt: "2024-01-15T10:30:00Z"
+                  user:
+                    id: 1
+                    name: "João Silva"
+                    username: "joao123"
+                    image: "https://example.com/avatar.jpg"
+                  product:
+                    id: 1
+                    name: "iPhone 15"
+                    category: "eletrônicos"
+                    image: "https://example.com/iphone.jpg"
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao buscar compras."
+
+    post:
+      tags:
+        - Compras
+      summary: Criar compra
+      description: Registra uma nova compra no sistema
+      operationId: createPurchase
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePurchaseRequest'
+            example:
+              productId: 1
+              price: 999.99
+      responses:
+        '201':
+          description: Compra criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Purchase'
+              example:
+                id: 1
+                userId: 1
+                productId: 1
+                price: 999.99
+                purchaseDate: "2024-01-15T10:30:00Z"
+                createdAt: "2024-01-15T10:30:00Z"
+                user:
+                  id: 1
+                  name: "João Silva"
+                  username: "joao123"
+                  image: "https://example.com/avatar.jpg"
+                product:
+                  id: 1
+                  name: "iPhone 15"
+                  category: "eletrônicos"
+                  image: "https://example.com/iphone.jpg"
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "ID do produto é obrigatório."
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '404':
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Produto não encontrado."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao criar compra."
+
+  /api/purchases/{id}:
+    delete:
+      tags:
+        - Compras
+      summary: Deletar compra
+      description: Remove uma compra específica. Usuários podem deletar apenas suas próprias compras, admins podem deletar qualquer compra.
+      operationId: deletePurchase
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID da compra
+          example: 1
+      responses:
+        '200':
+          description: Compra deletada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletePurchaseResponse'
+              example:
+                message: "Compra deletada com sucesso."
+        '400':
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "ID da compra inválido."
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Token inválido."
+        '403':
+          description: Acesso negado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Você não tem permissão para deletar esta compra."
+        '404':
+          description: Compra não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Compra não encontrada."
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao deletar compra."
+
+  # ========================================
+  # LIMPEZA AUTOMÁTICA
+  # ========================================
+  /api/cleanup:
+    get:
+      tags:
+        - Limpeza
+      summary: Verificar compras antigas
+      description: Verifica quais compras seriam deletadas na próxima limpeza automática (modo simulação)
+      operationId: checkOldPurchases
+      responses:
+        '200':
+          description: Lista de compras que seriam deletadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupCheckResponse'
+              example:
+                message: "Compras que seriam deletadas na próxima limpeza"
+                cutoffDate: "2024-01-15T10:30:00Z"
+                count: 3
+                purchases:
+                  - id: 1
+                    user: "João Silva"
+                    username: "joao123"
+                    product: "iPhone 15"
+                    category: "eletrônicos"
+                    purchaseDate: "2024-01-10T15:30:00Z"
+                    price: 999.99
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro ao verificar compras antigas."
+
+    post:
+      tags:
+        - Limpeza
+      summary: Executar limpeza automática
+      description: Remove automaticamente compras com mais de 2 meses
+      operationId: cleanupOldPurchases
+      responses:
+        '200':
+          description: Limpeza executada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupResponse'
+              example:
+                success: true
+                message: "Limpeza concluída. 5 compras antigas foram deletadas."
+                deletedCount: 5
+                cutoffDate: "2024-01-15T10:30:00Z"
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Erro durante a limpeza automática."
 
 components:
   securitySchemes:
@@ -708,7 +1017,7 @@ components:
           example: "https://example.com/iphone.jpg"
 
     # ========================================
-    # COMPRAS (Futuro)
+    # COMPRAS
     # ========================================
     Purchase:
       type: object
@@ -749,13 +1058,8 @@ components:
     CreatePurchaseRequest:
       type: object
       required:
-        - userId
         - productId
       properties:
-        userId:
-          type: integer
-          description: ID do usuário que está fazendo a compra
-          example: 1
         productId:
           type: integer
           description: ID do produto sendo comprado
@@ -765,6 +1069,91 @@ components:
           format: float
           description: Preço da compra
           example: 999.99
+
+    DeletePurchaseResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensagem de confirmação
+          example: "Compra deletada com sucesso."
+
+    # ========================================
+    # LIMPEZA AUTOMÁTICA
+    # ========================================
+    CleanupCheckResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensagem descritiva
+          example: "Compras que seriam deletadas na próxima limpeza"
+        cutoffDate:
+          type: string
+          format: date-time
+          description: Data de corte para limpeza (2 meses atrás)
+          example: "2024-01-15T10:30:00Z"
+        count:
+          type: integer
+          description: Número de compras que seriam deletadas
+          example: 3
+        purchases:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: ID da compra
+                example: 1
+              user:
+                type: string
+                description: Nome do usuário
+                example: "João Silva"
+              username:
+                type: string
+                description: Username do usuário
+                example: "joao123"
+              product:
+                type: string
+                description: Nome do produto
+                example: "iPhone 15"
+              category:
+                type: string
+                description: Categoria do produto
+                example: "eletrônicos"
+              purchaseDate:
+                type: string
+                format: date-time
+                description: Data da compra
+                example: "2024-01-10T15:30:00Z"
+              price:
+                type: number
+                format: float
+                nullable: true
+                description: Preço da compra
+                example: 999.99
+
+    CleanupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Se a limpeza foi executada com sucesso
+          example: true
+        message:
+          type: string
+          description: Mensagem de resultado
+          example: "Limpeza concluída. 5 compras antigas foram deletadas."
+        deletedCount:
+          type: integer
+          description: Número de compras deletadas
+          example: 5
+        cutoffDate:
+          type: string
+          format: date-time
+          description: Data de corte utilizada
+          example: "2024-01-15T10:30:00Z"
 
     # ========================================
     # ERROS
@@ -790,4 +1179,6 @@ tags:
   - name: Produtos
     description: Gerenciamento de produtos
   - name: Compras
-    description: Registro e consulta de compras (futuro)
+    description: Registro, consulta e exclusão de compras
+  - name: Limpeza
+    description: Limpeza automática de compras antigas

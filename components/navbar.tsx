@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,17 @@ export function Navbar() {
             className="h-16 w-auto"
           />
         </Link>
+
+        {/* Navigation Links */}
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/ask-cave"
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="hidden sm:block">Pergunte à Cave</span>
+          </Link>
+        </div>
 
         {/* User Info and Logout */}
         <div className="flex items-center gap-4">
